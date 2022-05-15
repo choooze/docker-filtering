@@ -1,0 +1,20 @@
+# traefik
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    restart: unless-stopped
+    # environment:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.tcp.routers.nginx.rule=HostSNI(`*`)"
+      - "traefik.tcp.routers.nginx.service=nginx"
+      - "traefik.tcp.services.nginx.loadbalancer.server.port=80"
+      - "traefik.tcp.middlewares.nginx-wl.ipwhitelist.sourcerange=193.77.64.75"
+      - "traefik.tcp.routers.nginx.middlewares=nginx-wl@docker"
+    volumes:
+      - /srv/httpd/data:/usr/share/nginx/html
+    networks:
+      - traefik_test
+    expose:
+      - 80
+

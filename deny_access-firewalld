@@ -1,0 +1,54 @@
+# https://roosbertl.blogspot.com/2019/06/securing-docker-ports-with-firewalld.html
+
+# Recreate DOCKER-USER chain [flush it yeah]
+firewall-cmd --permanent --direct --remove-chain ipv4 filter DOCKER-USER
+firewall-cmd --permanent --direct --remove-rules ipv4 filter DOCKER-USER
+firewall-cmd --permanent --direct --add-chain ipv4 filter DOCKER-USER
+
+# Allow containerts to check the news
+firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 1 \
+  -m conntrack \
+  --ctstate RELATED,ESTABLISHED -j ACCEPT 
+#  -m comment --comment 'Allow containers to connect to the outside world'
+
+# Allow internal communications
+firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 1 \
+  -j RETURN \
+  -s 172.16.0.0/12,192.168.0.0/16,10.0.0.0/8
+#  -m comment --comment 'allow internal docker communication'
+
+
+# Allow access from outside
+firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 1 \
+  -o docker0 \
+  -p tcp -m multiport \
+  --dports 80,443 -s 193.77.64.75/32 -j ACCEPT
+#  -m comment \
+#  --comment 'Allow IP 1.2.3.4 to access http and https docker ports'
+
+# Or we have some bridges?
+firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 1 \
+  -o br-* \
+  -p tcp -m multiport \
+  --dports 80,443 -s 193.77.64.75/32 -j ACCEPT
+
+# Or for any output interface 
+firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 1 \
+  -p tcp -m multiport \
+  --dports 80,443 -s 193.77.64.75/32 -j ACCEPT
+
+# Block all other IPs. This rule has lowest precedence, so you can add rules before this one later.
+firewall-cmd --permanent --direct --add-rule ipv4 filter DOCKER-USER 10 \
+  -j REJECT 
+#  -m comment --comment 'reject all other traffic to DOCKER-USER'
+
+# Collect logs
+firewall-cmd --direct --add-rule ipv4 filter DOCKER-USER 0 \
+  -j LOG --log-prefix ' DOCKER TCP: '
+
+
+# Reload firewalld
+firewall-cmd --reload
+
+# Start/restart docker
+systemctl start docker
